@@ -132,7 +132,7 @@ while running:
         else:
             angle_modifier = (MAX_SPEED/2) * -ANGLE_MULTIPLIER * dt
         car.adjust_angle(angle_modifier)
-    # Handle deceleration by gradually decrementing or
+    # Handle deceleration by gradually decrementing or ,
     # incrementing speed (depending on what direction the car was going before)
     if not (key[pygame.K_w] or key[pygame.K_s]):
         if speed > 0:

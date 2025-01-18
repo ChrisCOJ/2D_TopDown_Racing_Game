@@ -4,27 +4,36 @@ import pytmx
 
 CAR_WIDTH = 80  # pixels
 CAR_HEIGHT = 40  # pixels
-MAX_SPEED = 600  # Arbitrary number, no correlation to mph / kph
-ACCELERATION = 4  # Higher number = faster acceleration
-FRICTION = 2  # Higher number = faster idle deceleration
+ACCELERATION = 200  # Higher number = faster acceleration
+MAX_SPEED = 700  # Arbitrary number, no correlation to mph / kph
+TURN_SPEED = 500
+BRAKE_POWER = 400
+FRICTION = 100  # Higher number = faster idle deceleration
 ANGLE_MULTIPLIER = 0.5  # Used to determine rotational velocity in relation to current speed
 
 # pygame setup
 pygame.init()
-screen = pygame.display.set_mode((1280, 720))
+screen = pygame.display.set_mode((1920, 1080))
 pygame.display.set_caption('DK')
 clock = pygame.time.Clock()
 running = True
 dt = 0
-speed = 0
+current_speed = 0
 drift_angle = 0
+angle_modifier = 0
+
+# Finish line collision rectangle
+finish_line = pygame.Surface((70, 217))
+finish_line.fill('red')
+finish_line_rect = finish_line.get_rect(center=(640, 348))
+
+# Load background
 bg = pytmx.load_pygame('./tileset/map.tmx')
 # Get map dimensions
 tile_width = bg.tilewidth
 tile_height = bg.tileheight
 map_width = bg.width * tile_width
 map_height = bg.height * tile_height
-
 # Calculate offsets for centering the map
 offset_x = (screen.get_width() - map_width) // 2
 offset_y = (screen.get_height() - map_height) // 2
@@ -77,6 +86,9 @@ class Car:
         self._car_rect = self._car.get_rect(center=self._car_rect.center)
 
 
+car = Car()
+
+
 def move(speed, angle, offset_x, offset_y, dt):
     # Movement follows the angle of the car. E.g. When the car is angled at 90 deg,
     # sin(90) = 1, cos(90) = 0, therefore x-axis multiplied by 1, y-axis multiplied by 0.
@@ -87,7 +99,8 @@ def move(speed, angle, offset_x, offset_y, dt):
     return [offset_x, offset_y]
 
 
-car = Car()
+def lap_time(start_time, end_time):
+    pass
 
 
 # Game loop
@@ -114,31 +127,54 @@ while running:
 
     # Car movement & angle
     key = pygame.key.get_pressed()
+    # Decrease max speed while turning
+    if key[pygame.K_a] or key[pygame.K_d]:
+        max_speed = TURN_SPEED
+    else:
+        max_speed = MAX_SPEED
+
     if key[pygame.K_w] and not key[pygame.K_s]:
-        if speed < MAX_SPEED:
-            speed += ACCELERATION
+        if current_speed < max_speed / 2:
+            current_speed += ACCELERATION/2 * dt
+        elif max_speed / 2 < current_speed < max_speed:
+            current_speed += ACCELERATION * dt
+        else:
+            current_speed -= ACCELERATION * dt
+
     if key[pygame.K_s] and not key[pygame.K_w]:
-        if speed > -MAX_SPEED:
-            speed -= ACCELERATION
-    if key[pygame.K_a] and speed != 0:
-        if speed <= (MAX_SPEED/2):
-            angle_modifier = speed * ANGLE_MULTIPLIER * dt
+        if current_speed > -max_speed/2:
+            current_speed -= ACCELERATION/2 * dt
+        elif max_speed/2 < current_speed < max_speed:
+            current_speed -= ACCELERATION * dt
+        else:
+            current_speed += ACCELERATION * dt
+
+    if key[pygame.K_a] and current_speed != 0:
+        if current_speed <= (MAX_SPEED/2):
+            angle_modifier = current_speed * ANGLE_MULTIPLIER * dt
         else:
             angle_modifier = (MAX_SPEED/2) * ANGLE_MULTIPLIER * dt
         car.adjust_angle(angle_modifier)
-    if key[pygame.K_d] and speed != 0:
-        if speed <= (MAX_SPEED/2):
-            angle_modifier = speed * -ANGLE_MULTIPLIER * dt
+
+    if key[pygame.K_d] and current_speed != 0:
+        if current_speed <= (MAX_SPEED/2):
+            angle_modifier = current_speed * -ANGLE_MULTIPLIER * dt
         else:
             angle_modifier = (MAX_SPEED/2) * -ANGLE_MULTIPLIER * dt
         car.adjust_angle(angle_modifier)
+
+    if key[pygame.K_SPACE] and current_speed > 0:
+        current_speed -= BRAKE_POWER * dt
+    elif key[pygame.K_SPACE] and current_speed < 0:
+        current_speed += BRAKE_POWER * dt
+
     # Handle deceleration by gradually decrementing or
     # incrementing speed (depending on what direction the car was going before)
     if not (key[pygame.K_w] or key[pygame.K_s]):
-        if speed > 0:
-            speed -= FRICTION
-        else:
-            speed += FRICTION
+        if current_speed > 0:
+            current_speed -= FRICTION * dt
+        elif current_speed < 0:
+            current_speed += FRICTION * dt
 
     # Ensure the car stays within the screen boundaries
     if not (0 <= car.car_rect.x <= (screen.get_width() - CAR_WIDTH) and
@@ -146,10 +182,13 @@ while running:
         car.car_rect.x = prev_car_pos_x
         car.car_rect.y = prev_car_pos_y
 
-    offset = move(speed, car.angle, offset_x, offset_y, dt)
+    offset = move(current_speed, car.angle, offset_x, offset_y, dt)
     offset_x = offset[0]
     offset_y = offset[1]
+    finish_line_rect.x += offset_x
+    finish_line_rect.y += offset_y
 
+    screen.blit(finish_line, finish_line_rect)
     screen.blit(car.car, car.rect_pos)  # (car object, coordinates)
     # pygame.draw.rect(screen, 'red', car.car_rect, 2)
 

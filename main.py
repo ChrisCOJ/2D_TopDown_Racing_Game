@@ -53,7 +53,7 @@ def main():
     timer_running = False
 
     # Finish line collision rectangle position
-    finish_line = pygame.Surface((70, 217))
+    finish_line = pygame.Surface((5, 217), pygame.SRCALPHA)
     finish_line_x = 285
     finish_line_y = 60
 
@@ -104,7 +104,7 @@ def main():
         if key[pygame.K_a] or key[pygame.K_d]:
             max_speed = TURN_SPEED
             if current_speed > max_speed:
-                t = 0
+                t = 1
         else:
             max_speed = MAX_SPEED
 
@@ -150,7 +150,6 @@ def main():
                 angle_modifier = (max_speed/2) * -ANGLE_MULTIPLIER
             car.adjust_angle(angle_modifier)
 
-        # TWEAK
         if key[pygame.K_SPACE] and current_speed > 0:
             current_speed -= BRAKE_POWER * velocity
         elif key[pygame.K_SPACE] and current_speed < 0:
@@ -167,14 +166,12 @@ def main():
             car.car_rect.x = prev_car_pos_x
             car.car_rect.y = prev_car_pos_y
 
-        print(current_speed)
+        # print(current_speed)
 
         # Finish line collision logic
         if finish_line_rect.colliderect(car.car_rect):
             collision = True
-            finish_line.fill('green')
         else:
-            finish_line.fill('red')
             if collision:
                 timer_running = True
                 lap_count += 1
